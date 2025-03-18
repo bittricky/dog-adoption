@@ -4,7 +4,14 @@ import { LogOut, Search as SearchIcon, MapPin } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
-import { Select, Dog as DogCard, Button, Input } from "../components";
+import {
+  Select,
+  Dog as DogCard,
+  Button,
+  Input,
+  Modal,
+  MatchedDog,
+} from "../components";
 import {
   getBreeds,
   getDogs,
@@ -30,6 +37,9 @@ const Search = () => {
   const [zipCode, setZipCode] = useState<string>("");
   const [locations, setLocations] = useState<Location[]>([]);
   const [isValidatingZip, setIsValidatingZip] = useState<boolean>(false);
+  const [matchedDog, setMatchedDog] = useState<Dog | null>(null);
+  const [isMatchModalOpen, setIsMatchModalOpen] = useState<boolean>(false);
+  const [isGeneratingMatch, setIsGeneratingMatch] = useState<boolean>(false);
 
   const { data: breeds } = useQuery({
     queryKey: ["breeds"],
@@ -122,21 +132,23 @@ const Search = () => {
       return;
     }
 
+    setIsGeneratingMatch(true);
     try {
       const { match: matchId } = await getMatch(Array.from(favorites));
-      const [matchedDog] = await getDogs([matchId]);
+      const [dogMatch] = await getDogs([matchId]);
 
-      toast.success(
-        <div className="text-sm">
-          <p className="font-semibold">
-            You've been matched with {matchedDog.name}!
-          </p>
-          <p className="text-gray-600">{matchedDog.breed}</p>
-        </div>,
-        { duration: 5000 }
-      );
+      setMatchedDog(dogMatch);
+      setIsMatchModalOpen(true);
+
+      toast.success(`You've been matched with ${dogMatch.name}!`, {
+        duration: 3000,
+        position: "bottom-center",
+      });
     } catch (error) {
       toast.error("Failed to generate match. Please try again.");
+      console.error("Match generation error:", error);
+    } finally {
+      setIsGeneratingMatch(false);
     }
   };
 
@@ -305,8 +317,11 @@ const Search = () => {
           <h2 className="text-xl font-semibold text-gray-900">
             {favorites.size} {favorites.size === 1 ? "Favorite" : "Favorites"}
           </h2>
-          <Button onClick={handleGenerateMatch} disabled={favorites.size === 0}>
-            Generate Match
+          <Button
+            onClick={handleGenerateMatch}
+            disabled={favorites.size === 0 || isGeneratingMatch}
+          >
+            {isGeneratingMatch ? "Generating..." : "Generate Match"}
           </Button>
         </div>
 
@@ -356,6 +371,20 @@ const Search = () => {
           </Button>
         </div>
       </main>
+
+      <Modal
+        isOpen={isMatchModalOpen}
+        onClose={() => setIsMatchModalOpen(false)}
+        title="Your Perfect Match"
+        className="max-w-lg"
+      >
+        {matchedDog && (
+          <MatchedDog
+            dog={matchedDog}
+            onClose={() => setIsMatchModalOpen(false)}
+          />
+        )}
+      </Modal>
     </div>
   );
 };
