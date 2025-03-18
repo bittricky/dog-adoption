@@ -56,7 +56,7 @@ src/
 
 1. Clone the repository
    ```bash
-   git clone https://github.com/yourusername/dog-adoption.git
+   git clone <repo_url>
    cd dog-adoption
    ```
 
