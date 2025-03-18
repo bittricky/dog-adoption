@@ -2,11 +2,7 @@ import { Heart } from "lucide-react";
 import { cn } from "../utils/utils";
 import { DogProps } from "../global.d";
 
-export default function DogCard({
-  dog,
-  isFavorite,
-  onToggleFavorite,
-}: DogProps) {
+const Dog = ({ dog, isFavorite, onToggleFavorite }: DogProps) => {
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-[1.02]">
       <div className="aspect-square relative">
@@ -37,4 +33,8 @@ export default function DogCard({
       </div>
     </div>
   );
-}
+};
+
+Dog.displayName = "DogCard";
+
+export default Dog;

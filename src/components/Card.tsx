@@ -29,3 +29,7 @@ export function CardHeader({ className, ...props }: CardHeaderProps) {
 export function CardContent({ className, ...props }: CardContentProps) {
   return <div className={cn("px-6 pb-6", className)} {...props} />;
 }
+
+Card.displayName = "Card";
+
+export default Card;
