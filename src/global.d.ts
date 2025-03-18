@@ -59,3 +59,7 @@ export interface LoginCredentials {
   name: string;
   email: string;
 }
+
+export interface FetchRouteProps {
+  children: React.ReactNode;
+}
