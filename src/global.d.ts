@@ -1,3 +1,5 @@
+import { type HTMLAttributes } from "react";
+
 export interface Dog {
   id: string;
   img: string;
@@ -5,6 +7,18 @@ export interface Dog {
   age: number;
   zip_code: string;
   breed: string;
+}
+
+export interface CardProps extends HTMLAttributes<HTMLDivElement> {}
+
+export interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {}
+
+export interface CardContentProps extends HTMLAttributes<HTMLDivElement> {}
+
+export interface DogProps {
+  dog: Dog;
+  isFavorite: boolean;
+  onToggleFavorite: (dogId: string) => void;
 }
 
 export interface Location {
