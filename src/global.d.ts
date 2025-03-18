@@ -63,3 +63,16 @@ export interface LoginCredentials {
 export interface FetchRouteProps {
   children: React.ReactNode;
 }
+
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+export interface MatchedDogProps {
+  dog: Dog;
+  onClose: () => void;
+}
