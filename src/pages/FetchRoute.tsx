@@ -2,11 +2,11 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 
-interface ProtectedRouteProps {
+interface FetchRouteProps {
   children: React.ReactNode;
 }
 
-export default function FetchRoute({ children }: ProtectedRouteProps) {
+export default function FetchRoute({ children }: FetchRouteProps) {
   const navigate = useNavigate();
 
   useEffect(() => {
