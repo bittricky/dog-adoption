@@ -7,7 +7,7 @@ export default function FetchRoute({ children }: FetchRouteProps) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch(import.meta.env.VITE_FETCH_API_URL, {
+    fetch(`${import.meta.env.VITE_FETCH_API_URL}/dogs/breeds`, {
       credentials: "include",
     }).then((response) => {
       if (!response.ok) {
