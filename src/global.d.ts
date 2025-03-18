@@ -2,6 +2,7 @@ import {
   type HTMLAttributes,
   type InputHTMLAttributes,
   type SelectHTMLAttributes,
+  type ButtonHTMLAttributes,
 } from "react";
 
 export interface Dog {
@@ -31,6 +32,11 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   error?: boolean;
+}
+
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "primary" | "secondary" | "outline";
+  size?: "sm" | "md" | "lg";
 }
 
 export interface Location {
