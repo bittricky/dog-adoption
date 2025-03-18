@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, Search as SearchIcon } from "lucide-react";
+import { LogOut, Search as SearchIcon, MapPin } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
-import { Select, Dog as DogCard, Button } from "../components";
-import { getBreeds, getDogs, getMatch, logout, searchDogs } from "../utils/api";
-import { type Dog } from "../global.d";
+import { Select, Dog as DogCard, Button, Input } from "../components";
+import {
+  getBreeds,
+  getDogs,
+  getMatch,
+  logout,
+  searchDogs,
+  getLocationsByZipCodes,
+} from "../utils/api";
+import { type Dog, type Location } from "../global.d";
 
 const DOGS_PER_PAGE = 20;
 
@@ -14,11 +21,15 @@ const Search = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useState({
     breeds: [] as string[],
+    zipCodes: [] as string[],
     sort: "breed:asc",
     from: "",
   });
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [selectedBreed, setSelectedBreed] = useState<string>("");
+  const [zipCode, setZipCode] = useState<string>("");
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [isValidatingZip, setIsValidatingZip] = useState<boolean>(false);
 
   const { data: breeds } = useQuery({
     queryKey: ["breeds"],
@@ -47,11 +58,46 @@ const Search = () => {
     }
   };
 
+  const handleAddZipCode = async () => {
+    if (zipCode && !searchParams.zipCodes.includes(zipCode)) {
+      setIsValidatingZip(true);
+      try {
+        const locationData = await getLocationsByZipCodes([zipCode]);
+
+        if (locationData && locationData.length > 0) {
+          setSearchParams((prev) => ({
+            ...prev,
+            zipCodes: [...prev.zipCodes, zipCode],
+          }));
+          setLocations((prev) => [...prev, ...locationData]);
+          setZipCode("");
+        } else {
+          toast.error("Invalid ZIP code");
+        }
+      } catch (error: unknown) {
+        console.error("ZIP code validation error:", error);
+        toast.error("Failed to validate ZIP code");
+      } finally {
+        setIsValidatingZip(false);
+      }
+    }
+  };
+
   const handleRemoveBreed = (breed: string) => {
     setSearchParams((prev) => ({
       ...prev,
       breeds: prev.breeds.filter((b) => b !== breed),
     }));
+  };
+
+  const handleRemoveZipCode = (zipCodeToRemove: string) => {
+    setSearchParams((prev) => ({
+      ...prev,
+      zipCodes: prev.zipCodes.filter((z) => z !== zipCodeToRemove),
+    }));
+    setLocations((prev) =>
+      prev.filter((loc) => loc.zip_code !== zipCodeToRemove)
+    );
   };
 
   const handleSort = (value: string) => {
@@ -144,6 +190,36 @@ const Search = () => {
               </div>
             </div>
 
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Filter by ZIP Code
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  value={zipCode}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9]/g, "");
+                    setZipCode(value);
+                  }}
+                  placeholder="Enter ZIP code"
+                  className="flex-1"
+                  maxLength={5}
+                  pattern="[0-9]*"
+                  inputMode="numeric"
+                />
+                <Button
+                  onClick={handleAddZipCode}
+                  disabled={isValidatingZip || zipCode.length !== 5}
+                >
+                  {isValidatingZip ? (
+                    <span className="animate-pulse">...</span>
+                  ) : (
+                    <MapPin className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
             <div className="w-48">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Sort By
@@ -162,24 +238,67 @@ const Search = () => {
             </div>
           </div>
 
-          {searchParams.breeds.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {searchParams.breeds.map((breed) => (
-                <span
-                  key={breed}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-700"
-                >
-                  {breed}
-                  <button
-                    onClick={() => handleRemoveBreed(breed)}
-                    className="ml-2 hover:text-primary-900"
-                  >
-                    ×
-                  </button>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {searchParams.breeds.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-500">
+                  Breeds:
                 </span>
-              ))}
-            </div>
-          )}
+                {searchParams.breeds.map((breed) => (
+                  <span
+                    key={breed}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-700"
+                  >
+                    {breed}
+                    <button
+                      onClick={() => handleRemoveBreed(breed)}
+                      className="ml-2 hover:text-primary-900"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {searchParams.zipCodes.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-500">
+                  ZIP Codes:
+                </span>
+                {searchParams.zipCodes.map((zipCode) => {
+                  const location = locations.find(
+                    (loc) => loc.zip_code === zipCode
+                  );
+                  const locationLabel = location
+                    ? `${location.city}, ${location.state}`
+                    : zipCode;
+
+                  return (
+                    <span
+                      key={zipCode}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700"
+                      title={locationLabel}
+                    >
+                      <MapPin className="w-3 h-3 mr-1" />
+                      {zipCode}
+                      {location && (
+                        <span className="ml-1 text-xs text-blue-600">
+                          ({location.city}, {location.state})
+                        </span>
+                      )}
+                      <button
+                        onClick={() => handleRemoveZipCode(zipCode)}
+                        className="ml-2 hover:text-blue-900"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex justify-between items-center mb-6">

@@ -34,6 +34,7 @@ export async function logout() {
 
 export async function searchDogs(params: {
   breeds?: string[];
+  zipCodes?: string[];
   sort?: string;
   size?: number;
   from?: string;
@@ -42,6 +43,9 @@ export async function searchDogs(params: {
 
   if (params.breeds?.length) {
     params.breeds.forEach((breed) => searchParams.append("breeds", breed));
+  }
+  if (params.zipCodes?.length) {
+    params.zipCodes.forEach((zipCode) => searchParams.append("zipCodes", zipCode));
   }
   if (params.sort) searchParams.append("sort", params.sort);
   if (params.size) searchParams.append("size", params.size.toString());
@@ -68,6 +72,14 @@ export async function getMatch(favoriteIds: string[]) {
   const response = await fetchWithAuth("/dogs/match", {
     method: "POST",
     body: JSON.stringify(favoriteIds),
+  });
+  return response.json();
+}
+
+export async function getLocationsByZipCodes(zipCodes: string[]) {
+  const response = await fetchWithAuth("/locations", {
+    method: "POST",
+    body: JSON.stringify(zipCodes),
   });
   return response.json();
 }
