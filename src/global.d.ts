@@ -76,3 +76,19 @@ export interface MatchedDogProps {
   dog: Dog;
   onClose: () => void;
 }
+
+export interface ErrorMessageProps {
+  title?: string;
+  message: string;
+  onRetry?: () => void;
+  className?: string;
+}
+
+export interface SpinnerProps {
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}
+
+export interface SkeletonProps {
+  className?: string;
+}

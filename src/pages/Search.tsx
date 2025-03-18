@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, Search as SearchIcon, MapPin } from "lucide-react";
+import {
+  LogOut,
+  Search as SearchIcon,
+  MapPin,
+  AlertTriangle,
+  PawPrint,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -11,6 +17,9 @@ import {
   Input,
   Modal,
   MatchedDog,
+  Spinner,
+  ErrorMessage,
+  Skeleton,
 } from "../components";
 import {
   getBreeds,
@@ -41,21 +50,45 @@ const Search = () => {
   const [isMatchModalOpen, setIsMatchModalOpen] = useState<boolean>(false);
   const [isGeneratingMatch, setIsGeneratingMatch] = useState<boolean>(false);
 
-  const { data: breeds } = useQuery({
+  const {
+    data: breeds,
+    isLoading: isLoadingBreeds,
+    error: breedsError,
+    refetch: refetchBreeds,
+  } = useQuery({
     queryKey: ["breeds"],
     queryFn: getBreeds,
+    retry: 2,
+    staleTime: 5 * 60 * 1000,
   });
 
-  const { data: searchResults, isLoading: isSearching } = useQuery({
+  const {
+    data: searchResults,
+    isLoading: isSearching,
+    error: searchError,
+    refetch: refetchSearch,
+  } = useQuery({
     queryKey: ["dogs", searchParams],
     queryFn: async () => {
-      const { resultIds, next, prev } = await searchDogs({
-        ...searchParams,
-        size: DOGS_PER_PAGE,
-      });
-      const dogs = await getDogs(resultIds);
-      return { dogs, next, prev };
+      try {
+        const { resultIds, next, prev } = await searchDogs({
+          ...searchParams,
+          size: DOGS_PER_PAGE,
+        });
+
+        if (!resultIds.length) {
+          return { dogs: [], next, prev };
+        }
+
+        const dogs = await getDogs(resultIds);
+        return { dogs, next, prev };
+      } catch (error) {
+        console.error("Error fetching search results:", error);
+        throw new Error("Failed to fetch search results. Please try again.");
+      }
     },
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   const handleAddBreed = () => {
@@ -69,27 +102,41 @@ const Search = () => {
   };
 
   const handleAddZipCode = async () => {
-    if (zipCode && !searchParams.zipCodes.includes(zipCode)) {
-      setIsValidatingZip(true);
-      try {
-        const locationData = await getLocationsByZipCodes([zipCode]);
-
-        if (locationData && locationData.length > 0) {
-          setSearchParams((prev) => ({
-            ...prev,
-            zipCodes: [...prev.zipCodes, zipCode],
-          }));
-          setLocations((prev) => [...prev, ...locationData]);
-          setZipCode("");
-        } else {
-          toast.error("Invalid ZIP code");
-        }
-      } catch (error: unknown) {
-        console.error("ZIP code validation error:", error);
-        toast.error("Failed to validate ZIP code");
-      } finally {
-        setIsValidatingZip(false);
+    if (
+      !zipCode ||
+      searchParams.zipCodes.includes(zipCode) ||
+      zipCode.length !== 5
+    ) {
+      if (zipCode && zipCode.length !== 5) {
+        toast.error("ZIP code must be 5 digits");
       }
+      return;
+    }
+
+    setIsValidatingZip(true);
+    try {
+      const locationData = await getLocationsByZipCodes([zipCode]);
+
+      if (locationData && locationData.length > 0) {
+        setSearchParams((prev) => ({
+          ...prev,
+          zipCodes: [...prev.zipCodes, zipCode],
+        }));
+        setLocations((prev) => [...prev, ...locationData]);
+        setZipCode("");
+        toast.success(
+          `Added ${locationData[0].city}, ${locationData[0].state} to your search`
+        );
+      } else {
+        toast.error("Invalid ZIP code. Please enter a valid US ZIP code.");
+      }
+    } catch (error: unknown) {
+      console.error("ZIP code validation error:", error);
+      toast.error(
+        "Failed to validate ZIP code. Please check your connection and try again."
+      );
+    } finally {
+      setIsValidatingZip(false);
     }
   };
 
@@ -134,9 +181,21 @@ const Search = () => {
 
     setIsGeneratingMatch(true);
     try {
-      const { match: matchId } = await getMatch(Array.from(favorites));
-      const [dogMatch] = await getDogs([matchId]);
+      const matchResponse = await getMatch(Array.from(favorites));
 
+      if (!matchResponse || !matchResponse.match) {
+        throw new Error("No match was found. Try selecting different dogs.");
+      }
+
+      const matchId = matchResponse.match;
+
+      const dogMatches = await getDogs([matchId]);
+
+      if (!dogMatches || dogMatches.length === 0) {
+        throw new Error("Could not retrieve details for your matched dog.");
+      }
+
+      const dogMatch = dogMatches[0];
       setMatchedDog(dogMatch);
       setIsMatchModalOpen(true);
 
@@ -144,8 +203,13 @@ const Search = () => {
         duration: 3000,
         position: "bottom-center",
       });
-    } catch (error) {
-      toast.error("Failed to generate match. Please try again.");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to generate match. Please try again.";
+
+      toast.error(errorMessage);
       console.error("Match generation error:", error);
     } finally {
       setIsGeneratingMatch(false);
@@ -157,8 +221,13 @@ const Search = () => {
       await logout();
       toast.success("Logout successful");
       navigate("/");
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Logout error:", error);
       toast.error("Failed to logout. Please try again.");
+
+      if (error instanceof Error && error.message.includes("401")) {
+        navigate("/");
+      }
     }
   };
 
@@ -166,8 +235,9 @@ const Search = () => {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Find Your Perfect Dog
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+            <PawPrint className="w-8 h-8 mr-2 text-primary-500" />
+            Find a dog that can appreciate you
           </h1>
           <Button variant="outline" onClick={handleLogout}>
             <LogOut className="w-4 h-4 mr-2" />
@@ -188,18 +258,44 @@ const Search = () => {
                   value={selectedBreed}
                   onChange={(e) => setSelectedBreed(e.target.value)}
                   className="flex-1"
+                  disabled={isLoadingBreeds || !!breedsError}
                 >
-                  <option value="">Select a breed</option>
+                  <option value="">
+                    {isLoadingBreeds
+                      ? "Loading breeds..."
+                      : breedsError
+                      ? "Error loading breeds"
+                      : "Select a breed"}
+                  </option>
                   {breeds?.map((breed) => (
                     <option key={breed} value={breed}>
                       {breed}
                     </option>
                   ))}
                 </Select>
-                <Button onClick={handleAddBreed}>
-                  <SearchIcon className="w-4 h-4" />
+                <Button
+                  onClick={handleAddBreed}
+                  disabled={isLoadingBreeds || !selectedBreed || !!breedsError}
+                >
+                  {isLoadingBreeds ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <SearchIcon className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
+              {breedsError && (
+                <p className="text-red-500 text-xs mt-1 flex items-center">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Failed to load breeds
+                  <button
+                    onClick={() => refetchBreeds()}
+                    className="ml-2 text-primary-500 hover:text-primary-700 underline"
+                  >
+                    Retry
+                  </button>
+                </p>
+              )}
             </div>
 
             <div className="flex-1">
@@ -321,15 +417,42 @@ const Search = () => {
             onClick={handleGenerateMatch}
             disabled={favorites.size === 0 || isGeneratingMatch}
           >
-            {isGeneratingMatch ? "Generating..." : "Generate Match"}
+            {isGeneratingMatch ? (
+              <>
+                <Spinner size="sm" className="mr-2" />
+                Generating...
+              </>
+            ) : (
+              "Generate Match"
+            )}
           </Button>
         </div>
 
         {isSearching ? (
-          <div className="text-center py-12">Loading...</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Skeleton key={index} />
+            ))}
+          </div>
+        ) : searchError ? (
+          <ErrorMessage
+            title="Error Loading Dogs"
+            message="We couldn't fetch the dog listings. Please try again."
+            onRetry={refetchSearch}
+            className="max-w-lg mx-auto my-12"
+          />
         ) : searchResults?.dogs.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            No dogs found. Try adjusting your filters.
+          <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-100">
+            <div className="flex flex-col items-center">
+              <MapPin className="w-12 h-12 text-gray-300 mb-3" />
+              <h3 className="text-lg font-medium text-gray-700 mb-2">
+                No dogs found
+              </h3>
+              <p className="text-gray-500 mb-4 max-w-md">
+                We couldn't find any dogs matching your current filters. Try
+                adjusting your search criteria.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

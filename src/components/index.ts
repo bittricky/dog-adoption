@@ -5,3 +5,6 @@ export { default as Select } from "./Select";
 export { default as Dog } from "./Dog";
 export { default as Modal } from "./Modal";
 export { default as MatchedDog } from "./MatchedDog";
+export { default as Spinner } from "./Spinner";
+export { default as ErrorMessage } from "./ErrorMessage";
+export { default as Skeleton } from "./Skeleton";
