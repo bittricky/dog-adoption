@@ -1,4 +1,8 @@
-import { type HTMLAttributes } from "react";
+import {
+  type HTMLAttributes,
+  type InputHTMLAttributes,
+  type SelectHTMLAttributes,
+} from "react";
 
 export interface Dog {
   id: string;
@@ -19,6 +23,14 @@ export interface DogProps {
   dog: Dog;
   isFavorite: boolean;
   onToggleFavorite: (dogId: string) => void;
+}
+
+export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+  error?: boolean;
+}
+
+export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+  error?: boolean;
 }
 
 export interface Location {
